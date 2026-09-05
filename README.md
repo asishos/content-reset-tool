@@ -1,123 +1,109 @@
 # Content Reset Tool
 
-A lightweight WordPress administration utility for resetting selected site content without reinstalling WordPress.
+A lightweight WordPress administration utility for safely resetting selected site content without reinstalling WordPress.
 
 > **Warning:** This is a destructive tool. It is intended primarily for development, staging, testing, and rebuild environments. Always maintain and verify a working backup before use.
+
+## What's new in 1.1.0
+
+- Visible WordPress environment indicator
+- Stronger warning when a production environment is detected
+- Required verified-backup acknowledgement
+- Reset button stays disabled until the safety acknowledgement and exact confirmation are supplied
+- Server-side validation of the safety acknowledgement
+- Protection for WordPress system post types such as block templates, template parts and global styles
+- Refined responsive admin interface
 
 ## Features
 
 - **Content Only** reset mode
 - **Content + Media** reset mode
-- Removes standard WordPress posts and pages
-- Removes custom post types
-- Removes comments
-- Removes taxonomy terms
-- Removes navigation menus
-- Cleans orphaned post/comment metadata and relationships
-- Preserves WordPress core, installed plugins, themes, configuration, and users
-- Optional Media Library deletion
+- Standard posts and pages cleanup
+- Custom post type cleanup, including previously registered custom post types
+- Comment cleanup
+- Taxonomy cleanup
+- Navigation menu cleanup
+- Orphaned metadata and relationship cleanup
 - Administrator-only access
 - WordPress nonce protection
 - Explicit `DELETE CONTENT` confirmation
-- No external services, telemetry, analytics, advertising, or tracking
+- No external services, tracking, analytics, advertising, telemetry, or license server
 
 ## Reset modes
 
 ### Content Only
 
-Removes:
-
-- Posts
-- Pages
-- Custom post types
-- Comments
-- Taxonomy terms
-- Navigation menus
-- Related orphaned metadata/relationships
-
-Media Library items and their uploaded files are preserved.
+Removes selected content while preserving Media Library items and their uploaded files.
 
 ### Content + Media
 
-Performs the Content Only reset and additionally permanently deletes Media Library attachments and their uploaded files.
+Removes the same content and additionally permanently deletes Media Library attachments and their uploaded files.
 
-## What it does not remove
+## Protected system data
 
-The plugin does not intentionally remove:
+The broad content reset does **not** intentionally delete WordPress system objects such as:
 
-- WordPress core
-- WordPress user accounts
-- Administrator accounts
+- WordPress core files
+- User accounts
 - Installed plugins
 - Installed themes
 - `wp-config.php`
-- WordPress installation settings
-- Media files when using **Content Only**
+- Block theme templates and template parts
+- Global styles
+- Customizer changesets
+- Other protected WordPress system post types
+
+Revisions are removed as part of deleting their parent content where WordPress handles them as associated data.
 
 ## Requirements
 
-- WordPress 6.0 or later
-- PHP 7.4 or later
+- WordPress 6.0+
+- PHP 7.4+
 - Administrator-level access
 
 ## Installation
 
-1. Download the repository.
-2. Place the `content-reset-tool` directory in `wp-content/plugins/`.
-3. Activate **Content Reset Tool** from **Plugins → Installed Plugins**.
-4. Open **Tools → Content Reset**.
-
-Alternatively, package the `content-reset-tool` directory as a ZIP and install it through **Plugins → Add New → Upload Plugin**.
+1. Download the plugin ZIP from the GitHub release.
+2. In WordPress, open **Plugins → Add New → Upload Plugin**.
+3. Upload the ZIP.
+4. Activate **Content Reset Tool**.
+5. Open **Tools → Content Reset**.
 
 ## Safety
 
-This plugin permanently deletes selected data.
-
-Before using it:
+Before using the tool:
 
 1. Confirm that you are on the intended website.
 2. Take a complete database and file backup.
 3. Verify that the backup can be restored.
-4. Select the correct reset mode.
-5. Confirm the destructive action by entering `DELETE CONTENT`.
+4. Review the selected reset mode.
+5. Acknowledge the verified backup requirement.
+6. Type `DELETE CONTENT`.
+7. Confirm the final browser warning.
 
 There is no undo function.
 
 ## Recommended use
 
-This plugin is best suited to:
+Content Reset Tool is best suited to:
 
-- WordPress development sites
+- Development sites
 - Staging environments
 - QA/testing installations
 - Theme development
 - Plugin development
-- Rebuilds where the WordPress installation itself should remain intact
+- Website rebuilds
 
-**Do not use it on a production website unless you fully understand and intentionally accept the consequences.**
+Production use is discouraged. If you intentionally use it on production, understand that the selected data is permanently deleted.
 
 ## Privacy
 
-Content Reset Tool does not send site content or usage information to external services and does not include analytics, advertising, telemetry, or remote licensing.
-
-## Repository structure
-
-```text
-content-reset-tool/
-├── content-reset-tool.php
-├── inc-admin.php
-├── readme.txt
-├── README.md
-├── CHANGELOG.md
-├── LICENSE.txt
-└── assets/
-    └── admin.css
-```
-
-## Changelog
-
-See [CHANGELOG.md](CHANGELOG.md).
+The plugin does not send site content or usage information to external services and does not include analytics, advertising, telemetry, or remote licensing.
 
 ## License
 
 GPL-2.0-or-later. See [LICENSE.txt](LICENSE.txt).
+
+## Changelog
+
+See [CHANGELOG.md](CHANGELOG.md).

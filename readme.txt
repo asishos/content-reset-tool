@@ -2,9 +2,9 @@
 Contributors: grazingminds
 Tags: reset, cleanup, content, development, staging
 Requires at least: 6.0
-Tested up to: 7.1
+Tested up to: 6.9
 Requires PHP: 7.4
-Stable tag: 1.0.0
+Stable tag: 1.1.0
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -101,6 +101,15 @@ It is intended primarily for development, staging and testing environments. Do n
 No. It has no external services, analytics, tracking or telemetry.
 
 == Changelog ==
+
+= 1.1.0 =
+* Added visible WordPress environment indicator.
+* Added stronger production-environment warning.
+* Added required verified-backup acknowledgement before reset.
+* Disabled reset button until the required acknowledgement and exact confirmation are supplied.
+* Added server-side validation for the backup acknowledgement.
+* Protected WordPress system post types such as block templates and global styles from broad content deletion.
+* Refined admin interface and mobile responsiveness.
 
 = 1.0.0 =
 * Initial release.

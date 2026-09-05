@@ -3,7 +3,7 @@
  * Plugin Name: Content Reset Tool
  * Plugin URI: https://grazingminds.co.in/
  * Description: Safely remove WordPress content and optionally media so a development or staging site can start clean.
- * Version: 1.0.0
+ * Version: 1.1.0
  * Requires at least: 6.0
  * Requires PHP: 7.4
  * Author: Grazing Minds
@@ -18,7 +18,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'CRT_VERSION', '1.0.0' );
+define( 'CRT_VERSION', '1.1.0' );
 define( 'CRT_FILE', __FILE__ );
 define( 'CRT_DIR', plugin_dir_path( __FILE__ ) );
 
@@ -89,6 +89,8 @@ function crt_render_admin_page() {
 	}
 
 	$counts = crt_get_counts();
+	$environment = function_exists( 'wp_get_environment_type' ) ? wp_get_environment_type() : 'production';
+	$environment_label = ucfirst( $environment );
 	$notice = isset( $_GET['crt_notice'] ) ? sanitize_key( wp_unslash( $_GET['crt_notice'] ) ) : '';
 	$error  = isset( $_GET['crt_error'] ) ? sanitize_key( wp_unslash( $_GET['crt_error'] ) ) : '';
 	?>
@@ -100,6 +102,8 @@ function crt_render_admin_page() {
 				<p><strong><?php esc_html_e( 'Reset complete.', 'content-reset-tool' ); ?></strong>
 				<?php esc_html_e( 'The selected WordPress content has been permanently removed.', 'content-reset-tool' ); ?></p>
 			</div>
+		<?php elseif ( 'acknowledgement' === $error ) : ?>
+			<div class="notice notice-error"><p><?php esc_html_e( 'You must acknowledge the verified-backup requirement before resetting content.', 'content-reset-tool' ); ?></p></div>
 		<?php elseif ( 'confirmation' === $error ) : ?>
 			<div class="notice notice-error"><p><?php esc_html_e( 'The confirmation text did not match.', 'content-reset-tool' ); ?></p></div>
 		<?php elseif ( 'failed' === $error ) : ?>
@@ -107,10 +111,15 @@ function crt_render_admin_page() {
 		<?php endif; ?>
 
 		<div class="crt-card">
-			<h2><?php esc_html_e( 'Start with a clean WordPress content layer', 'content-reset-tool' ); ?></h2>
-			<p class="description">
-				<?php esc_html_e( 'Designed for development, staging and testing sites. It removes content without reinstalling WordPress.', 'content-reset-tool' ); ?>
-			</p>
+			<div class="crt-header-row">
+				<div>
+					<h2><?php esc_html_e( 'Start with a clean WordPress content layer', 'content-reset-tool' ); ?></h2>
+					<p class="description">
+						<?php esc_html_e( 'Designed for development, staging and testing sites. It removes content without reinstalling WordPress.', 'content-reset-tool' ); ?>
+					</p>
+				</div>
+				<span class="crt-environment crt-environment-<?php echo esc_attr( sanitize_html_class( $environment ) ); ?>"><?php echo esc_html( $environment_label ); ?> environment</span>
+			</div>
 
 			<div class="crt-stats">
 				<div><strong><?php echo esc_html( number_format_i18n( $counts['posts'] ) ); ?></strong><span><?php esc_html_e( 'Posts', 'content-reset-tool' ); ?></span></div>
@@ -126,6 +135,11 @@ function crt_render_admin_page() {
 				<?php wp_nonce_field( 'crt_reset_action', 'crt_nonce' ); ?>
 
 				<h3><?php esc_html_e( 'Choose what to remove', 'content-reset-tool' ); ?></h3>
+
+				<div class="crt-protected">
+					<strong><?php esc_html_e( 'Protected by default', 'content-reset-tool' ); ?></strong>
+					<p><?php esc_html_e( 'WordPress core, users, plugins, themes, configuration, templates and other system objects are preserved. Revisions are removed as part of the content reset.', 'content-reset-tool' ); ?></p>
+				</div>
 
 				<label class="crt-option">
 					<input type="radio" name="crt_mode" value="content" checked>
@@ -146,6 +160,9 @@ function crt_render_admin_page() {
 				<div class="crt-warning">
 					<strong><?php esc_html_e( 'This cannot be undone.', 'content-reset-tool' ); ?></strong>
 					<p><?php esc_html_e( 'Do not use this on a production site unless you have a verified backup and intend to permanently remove the selected content.', 'content-reset-tool' ); ?></p>
+					<?php if ( 'production' === $environment ) : ?>
+						<p class="crt-production-warning"><strong><?php esc_html_e( 'Production environment detected.', 'content-reset-tool' ); ?></strong> <?php esc_html_e( 'Double-check the site and backup before continuing.', 'content-reset-tool' ); ?></p>
+					<?php endif; ?>
 				</div>
 
 				<p>
@@ -156,18 +173,26 @@ function crt_render_admin_page() {
 					</label>
 				</p>
 
+				<label class="crt-check">
+					<input type="checkbox" id="crt_ack" name="crt_ack" value="1" required>
+					<span><?php esc_html_e( 'I have a verified backup and understand that this action permanently deletes the selected content.', 'content-reset-tool' ); ?></span>
+				</label>
+
 				<input
 					type="text"
 					id="crt_confirmation"
 					name="crt_confirmation"
 					class="regular-text"
+					aria-describedby="crt-confirm-help"
 					autocomplete="off"
 					placeholder="DELETE CONTENT"
 					required
 				>
 
+				<p id="crt-confirm-help" class="description"><?php esc_html_e( 'The reset button stays disabled until the backup acknowledgement and exact confirmation are provided.', 'content-reset-tool' ); ?></p>
+
 				<p>
-					<button type="submit" class="button button-primary button-large">
+					<button type="submit" class="button button-primary button-large" id="crt-submit" disabled>
 						<?php esc_html_e( 'Reset Selected Content', 'content-reset-tool' ); ?>
 					</button>
 				</p>
@@ -178,15 +203,28 @@ function crt_render_admin_page() {
 	<script>
 	(function () {
 		const form = document.getElementById('crt-form');
-		if (!form) return;
+		const confirmation = document.getElementById('crt_confirmation');
+		const acknowledgement = document.getElementById('crt_ack');
+		const submit = document.getElementById('crt-submit');
+		if (!form || !confirmation || !acknowledgement || !submit) return;
+
+		function updateState() {
+			const exact = confirmation.value.trim() === 'DELETE CONTENT';
+			submit.disabled = !(exact && acknowledgement.checked);
+		}
+
+		confirmation.addEventListener('input', updateState);
+		acknowledgement.addEventListener('change', updateState);
+		updateState();
+
 		form.addEventListener('submit', function (event) {
-			const value = document.getElementById('crt_confirmation').value.trim();
-			if (value !== 'DELETE CONTENT') {
+			const value = confirmation.value.trim();
+			if (!acknowledgement.checked || value !== 'DELETE CONTENT') {
 				event.preventDefault();
-				alert('<?php echo esc_js( __( 'Type DELETE CONTENT exactly to continue.', 'content-reset-tool' ) ); ?>');
+				alert('<?php echo esc_js( __( 'Please confirm the backup acknowledgement and type DELETE CONTENT exactly to continue.', 'content-reset-tool' ) ); ?>');
 				return;
 			}
-			if (!window.confirm('<?php echo esc_js( __( 'This will permanently delete the selected WordPress content. Continue?', 'content-reset-tool' ) ); ?>')) {
+			if (!window.confirm('<?php echo esc_js( __( 'This will permanently delete the selected WordPress content. This action cannot be undone. Continue?', 'content-reset-tool' ) ); ?>')) {
 				event.preventDefault();
 			}
 		});
@@ -207,6 +245,13 @@ function crt_handle_reset() {
 	$confirmation = isset( $_POST['crt_confirmation'] )
 		? sanitize_text_field( wp_unslash( $_POST['crt_confirmation'] ) )
 		: '';
+
+	$acknowledged = isset( $_POST['crt_ack'] ) && '1' === sanitize_text_field( wp_unslash( $_POST['crt_ack'] ) );
+
+	if ( ! $acknowledged ) {
+		wp_safe_redirect( add_query_arg( 'crt_error', 'acknowledgement', admin_url( 'tools.php?page=content-reset-tool' ) ) );
+		exit;
+	}
 
 	if ( 'DELETE CONTENT' !== $confirmation ) {
 		wp_safe_redirect( add_query_arg( 'crt_error', 'confirmation', admin_url( 'tools.php?page=content-reset-tool' ) ) );
@@ -257,11 +302,31 @@ function crt_delete_all_posts( $delete_media ) {
 	// when the plugin/theme that registered them has already been deactivated.
 	$ids = $wpdb->get_col( "SELECT ID FROM {$wpdb->posts} ORDER BY ID ASC" );
 
+	// Never treat WordPress system objects as resettable content. This keeps
+	// block-theme templates, global styles, customizer data and other core
+	// structures intact while still allowing registered/unregistered custom
+	// post types to be cleared.
+	$protected_types = array(
+		'attachment',
+		'revision',
+		'nav_menu_item',
+		'custom_css',
+		'customize_changeset',
+		'oembed_cache',
+		'wp_template',
+		'wp_template_part',
+		'wp_global_styles',
+	);
+
 	foreach ( $ids as $post_id ) {
 		$post_id = (int) $post_id;
 		$post    = get_post( $post_id );
 
 		if ( ! $post ) {
+			continue;
+		}
+
+		if ( in_array( $post->post_type, $protected_types, true ) && 'attachment' !== $post->post_type ) {
 			continue;
 		}
 
